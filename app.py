@@ -13,8 +13,13 @@ DATABASE_URL = os.getenv(
 
 
 def get_db_connection():
-    """Conexión a PostgreSQL con SSL requerido por Render."""
+    """Conexión a PostgreSQL. En Render usa la URL interna (sin dominio público)."""
     url = DATABASE_URL
+
+    if os.getenv('RENDER') and '.oregon-postgres.render.com' in url:
+        url = url.replace('.oregon-postgres.render.com', '')
+        return psycopg2.connect(url, cursor_factory=RealDictCursor)
+
     if 'sslmode=' not in url:
         separator = '&' if '?' in url else '?'
         url = f'{url}{separator}sslmode=require'
