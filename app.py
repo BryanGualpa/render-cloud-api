@@ -11,6 +11,16 @@ DATABASE_URL = os.getenv(
     'postgresql://admin:yn6BEQGw4MY3bt2nLBLzrrkdfmVsFm4g@dpg-d5tdhafpm1nc7399kgv0-a.oregon-postgres.render.com:5432/appdb_y98p'
 )
 
+
+def get_db_connection():
+    """Conexión a PostgreSQL con SSL requerido por Render."""
+    url = DATABASE_URL
+    if 'sslmode=' not in url:
+        separator = '&' if '?' in url else '?'
+        url = f'{url}{separator}sslmode=require'
+    return psycopg2.connect(url, cursor_factory=RealDictCursor)
+
+
 @app.route('/')
 def home():
     return jsonify({
@@ -25,7 +35,7 @@ def health():
     """Health check que prueba la conexión a PostgreSQL"""
     try:
         # Conectar a PostgreSQL
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT version(), NOW()')
         result = cursor.fetchone()
@@ -48,7 +58,7 @@ def health():
 def test_db():
     """Prueba simple de creación y consulta"""
     try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         # Crear tabla temporal
