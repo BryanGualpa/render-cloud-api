@@ -6,14 +6,14 @@ from psycopg2.extras import RealDictCursor
 app = Flask(__name__)
 
 
-DATABASE_URL = os.getenv(
-    'DATABASE_URL',
-    'postgresql://admin:yn6BEQGw4MY3bt2nLBLzrrkdfmVsFm4g@dpg-d5tdhafpm1nc7399kgv0-a.oregon-postgres.render.com:5432/appdb_y98p'
-)
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 
 def get_db_connection():
     """Conexión a PostgreSQL. En Render usa la URL interna (sin dominio público)."""
+    if not DATABASE_URL:
+        raise ValueError('DATABASE_URL no está configurada')
+
     url = DATABASE_URL
 
     if os.getenv('RENDER') and '.oregon-postgres.render.com' in url:
