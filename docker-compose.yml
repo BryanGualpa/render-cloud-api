@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: analyticore
+      POSTGRES_PASSWORD: analyticore
+      POSTGRES_DB: analyticore
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analyticore"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  java-service:
+    build: ./java-service
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://analyticore:analyticore@postgres:5432/analyticore
+      PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  python-service:
+    build: ./python-service
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://analyticore:analyticore@postgres:5432/analyticore
+      JAVA_SERVICE_URL: http://java-service:8080
+      PORT: 5000
+    depends_on:
+      - java-service
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5000
+    ports:
+      - "3000:80"
+    depends_on:
+      - python-service
+
+volumes:
+  pgdata:
