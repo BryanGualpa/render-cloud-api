@@ -13,6 +13,16 @@ def get_database_url() -> str:
     elif 'sslmode=' not in url:
         separator = '&' if '?' in url else '?'
         url = f'{url}{separator}sslmode=require'
+
+    return _add_port_if_missing(url)
+
+
+def _add_port_if_missing(url: str) -> str:
+    at_index = url.index('@')
+    slash_index = url.index('/', at_index)
+    host_part = url[at_index + 1:slash_index]
+    if ':' not in host_part:
+        return url[:at_index + 1] + host_part + ':5432' + url[slash_index:]
     return url
 
 
