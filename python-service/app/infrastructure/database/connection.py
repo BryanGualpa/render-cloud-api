@@ -3,6 +3,17 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 
+_schema_ready = False
+
+
+def ensure_schema():
+    global _schema_ready
+    if _schema_ready:
+        return
+    init_schema()
+    _schema_ready = True
+
+
 def get_database_url() -> str:
     url = os.getenv('DATABASE_URL')
     if not url:

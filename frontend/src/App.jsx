@@ -10,6 +10,22 @@ const STATUS_LABELS = {
   ERROR: 'Error',
 }
 
+async function parseApiResponse(res) {
+  const contentType = res.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    return res.json()
+  }
+
+  const text = await res.text()
+  if (res.status === 404) {
+    throw new Error('API no encontrada. Verifica que render-cloud-api use Root Directory: python-service.')
+  }
+  if (res.status >= 500) {
+    throw new Error('El servicio Python no está disponible. Espera el redeploy y vuelve a intentar.')
+  }
+  throw new Error(text || `Error HTTP ${res.status}`)
+}
+
 export default function App() {
   const [text, setText] = useState('')
   const [jobId, setJobId] = useState(null)
@@ -32,8 +48,8 @@ export default function App() {
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/api/jobs/${id}`)
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
+        const data = await parseApiResponse(res)
+        if (!res.ok) throw new Error(data.error || 'Error al consultar el trabajo')
 
         setStatus(data.status)
         setSentiment(data.sentiment)
@@ -66,8 +82,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await parseApiResponse(res)
+      if (!res.ok) throw new Error(data.error || 'Error al enviar el análisis')
 
       setJobId(data.jobId)
       setStatus(data.status)

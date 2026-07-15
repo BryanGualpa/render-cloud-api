@@ -3,11 +3,12 @@ from typing import Optional
 
 from app.domain.entities.job import Job
 from app.domain.repositories.job_repository import JobRepository
-from app.infrastructure.database.connection import get_connection
+from app.infrastructure.database.connection import ensure_schema, get_connection
 
 
 class PostgresJobRepository(JobRepository):
     def create(self, text: str) -> Job:
+        ensure_schema()
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -27,6 +28,7 @@ class PostgresJobRepository(JobRepository):
             conn.close()
 
     def find_by_id(self, job_id: str) -> Optional[Job]:
+        ensure_schema()
         conn = get_connection()
         try:
             cursor = conn.cursor()

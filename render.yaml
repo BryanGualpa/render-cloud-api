@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: analyticore-java
+    runtime: docker
+    rootDir: java-service
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: render-cloud-db
+          property: connectionString
+
+  - type: web
+    name: render-cloud-api
+    runtime: docker
+    rootDir: python-service
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: render-cloud-db
+          property: connectionString
+      - key: JAVA_SERVICE_URL
+        fromService:
+          name: analyticore-java
+          type: web
+          property: host
+
+  - type: web
+    name: analyticore-frontend
+    runtime: docker
+    rootDir: frontend
+    plan: free
+    region: oregon
+    envVars:
+      - key: API_URL
+        fromService:
+          name: render-cloud-api
+          type: web
+          property: host
+
+databases:
+  - name: render-cloud-db
+    plan: free
+    region: oregon
