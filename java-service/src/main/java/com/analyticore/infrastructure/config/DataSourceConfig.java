@@ -24,8 +24,10 @@ public class DataSourceConfig {
             jdbcUrl = "jdbc:postgresql://" + jdbcUrl.substring("postgresql://".length());
         }
 
-        if (System.getenv("RENDER") != null && jdbcUrl.contains(".oregon-postgres.render.com")) {
-            jdbcUrl = jdbcUrl.replace(".oregon-postgres.render.com", "");
+        if (System.getenv("RENDER") != null) {
+            if (jdbcUrl.contains(".oregon-postgres.render.com")) {
+                jdbcUrl = jdbcUrl.replace(".oregon-postgres.render.com", "");
+            }
         } else if (!jdbcUrl.contains("sslmode=")) {
             jdbcUrl += (jdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
         }

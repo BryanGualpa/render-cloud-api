@@ -7,8 +7,9 @@ def get_database_url() -> str:
     url = os.getenv('DATABASE_URL')
     if not url:
         raise ValueError('DATABASE_URL no está configurada')
-    if os.getenv('RENDER') and '.oregon-postgres.render.com' in url:
-        url = url.replace('.oregon-postgres.render.com', '')
+    if os.getenv('RENDER'):
+        if '.oregon-postgres.render.com' in url:
+            url = url.replace('.oregon-postgres.render.com', '')
     elif 'sslmode=' not in url:
         separator = '&' if '?' in url else '?'
         url = f'{url}{separator}sslmode=require'
