@@ -18,6 +18,11 @@ def get_database_url() -> str:
     url = os.getenv('DATABASE_URL')
     if not url:
         raise ValueError('DATABASE_URL no está configurada')
+    if not url.startswith(('postgres://', 'postgresql://')):
+        raise ValueError(
+            'DATABASE_URL inválida. Debe ser la Internal Database URL completa, '
+            'no solo el nombre de la base de datos.'
+        )
     if os.getenv('RENDER'):
         if '.oregon-postgres.render.com' in url:
             url = url.replace('.oregon-postgres.render.com', '')

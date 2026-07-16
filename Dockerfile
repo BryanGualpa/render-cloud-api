@@ -8,9 +8,8 @@ COPY python-service/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY python-service/ .
-RUN chmod +x start.sh
 
 ENV PORT=5000
 EXPOSE 5000
 
-CMD ["./start.sh"]
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --access-logfile - --error-logfile - wsgi:app

@@ -10,10 +10,11 @@ def create_routes(create_job: CreateJobUseCase, get_job: GetJobUseCase) -> Bluep
 
     @api.route('/health', methods=['GET'])
     def health():
+        database_url = os.getenv('DATABASE_URL', '')
         return jsonify({
             'status': 'healthy',
             'service': 'submission-service',
-            'databaseConfigured': bool(os.getenv('DATABASE_URL')),
+            'databaseConfigured': database_url.startswith(('postgres://', 'postgresql://')),
             'javaServiceConfigured': bool(os.getenv('JAVA_SERVICE_URL')),
         })
 
