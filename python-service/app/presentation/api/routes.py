@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+import os
 
 from app.application.use_cases.create_job_use_case import CreateJobUseCase
 from app.application.use_cases.get_job_use_case import GetJobUseCase
@@ -9,7 +10,20 @@ def create_routes(create_job: CreateJobUseCase, get_job: GetJobUseCase) -> Bluep
 
     @api.route('/health', methods=['GET'])
     def health():
-        return jsonify({'status': 'healthy', 'service': 'submission-service'})
+        return jsonify({
+            'status': 'healthy',
+            'service': 'submission-service',
+            'databaseConfigured': bool(os.getenv('DATABASE_URL')),
+            'javaServiceConfigured': bool(os.getenv('JAVA_SERVICE_URL')),
+        })
+
+    @api.route('/', methods=['GET'])
+    def root():
+        return jsonify({
+            'service': 'submission-service',
+            'status': 'running',
+            'endpoints': ['/health', '/api/jobs'],
+        })
 
     @api.route('/api/jobs', methods=['POST'])
     def submit_job():

@@ -8,8 +8,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN chmod +x start.sh
 
 ENV PORT=5000
-EXPOSE $PORT
+EXPOSE 5000
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120 wsgi:app"]
+CMD ["./start.sh"]

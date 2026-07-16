@@ -10,7 +10,7 @@ from app.presentation.api.routes import create_routes
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     repository = PostgresJobRepository()
     java_client = JavaAnalysisClient()

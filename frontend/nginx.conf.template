@@ -1,0 +1,33 @@
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass __API_BACKEND__/api/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __API_HOST__;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api-health {
+        proxy_pass __API_BACKEND__/health;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __API_HOST__;
+    }
+
+    location /health {
+        default_type application/json;
+        return 200 '{"status":"healthy","service":"frontend"}';
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml;
+}
