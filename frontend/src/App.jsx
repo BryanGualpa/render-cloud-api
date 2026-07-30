@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import { STATUS_LABELS } from './constants'
 
 const API_URL =
   window.__API_URL__ !== undefined
     ? window.__API_URL__
     : (import.meta.env.VITE_API_URL || 'http://localhost:5000')
-
-const STATUS_LABELS = {
-  PENDIENTE: 'Pendiente',
-  PROCESANDO: 'Procesando',
-  COMPLETADO: 'Completado',
-  ERROR: 'Error',
-}
 
 async function parseApiResponse(res) {
   const contentType = res.headers.get('content-type') || ''

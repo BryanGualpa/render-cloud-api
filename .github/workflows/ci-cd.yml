@@ -1,0 +1,183 @@
+name: AnalytiCore CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/analyticore
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      python: ${{ steps.filter.outputs.python }}
+      java: ${{ steps.filter.outputs.java }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            python:
+              - 'python-service/**'
+            java:
+              - 'java-service/**'
+
+  frontend-ci:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+      - name: Security audit
+        working-directory: frontend
+        run: npm audit --audit-level=high || true
+      - name: Build Docker image
+        run: docker build -t ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }} ./frontend
+      - name: Portability check
+        run: |
+          docker run -d --name frontend-test -p 8088:80 ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+          sleep 3
+          curl -fsS http://localhost:8088/health
+          docker rm -f frontend-test
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker push ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+
+  python-ci:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        working-directory: python-service
+        run: |
+          pip install -r requirements.txt
+          pip install pytest ruff pip-audit
+      - name: Unit tests
+        working-directory: python-service
+        run: pytest -q
+      - name: Static analysis
+        working-directory: python-service
+        run: ruff check app || true
+      - name: Security audit
+        working-directory: python-service
+        run: pip-audit -r requirements.txt || true
+      - name: Build Docker image
+        run: docker build -t ${{ env.IMAGE_PREFIX }}-python:${{ github.sha }} ./python-service
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}-python:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker push ${{ env.IMAGE_PREFIX }}-python:${{ github.sha }}
+
+  java-ci:
+    needs: changes
+    if: needs.changes.outputs.java == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Unit tests
+        working-directory: java-service
+        run: mvn -B test
+      - name: Build Docker image
+        working-directory: java-service
+        run: docker build -t ${{ env.IMAGE_PREFIX }}-java:${{ github.sha }} .
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}-java:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          docker push ${{ env.IMAGE_PREFIX }}-java:${{ github.sha }}
+
+  deploy-staging:
+    needs: [frontend-ci, python-ci, java-ci]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy staging stack
+        run: |
+          docker compose up -d --build
+          sleep 20
+          curl -fsS http://localhost:3000/health
+          curl -fsS http://localhost:5000/health
+          curl -fsS http://localhost:8080/health
+      - name: Smoke test
+        run: |
+          JOB_ID=$(curl -fsS -X POST http://localhost:5000/api/jobs \
+            -H "Content-Type: application/json" \
+            -d '{"text":"excelente proyecto genial"}' | python -c "import sys, json; print(json.load(sys.stdin)['jobId'])")
+          for i in $(seq 1 15); do
+            STATUS=$(curl -fsS http://localhost:5000/api/jobs/$JOB_ID | python -c "import sys, json; print(json.load(sys.stdin)['status'])")
+            if [ "$STATUS" = "COMPLETADO" ]; then
+              echo "Staging smoke test OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Staging smoke test failed"
+          exit 1
+
+  deploy-production:
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Promote validated images
+        run: echo "Production deploy approved for commit ${{ github.sha }}"

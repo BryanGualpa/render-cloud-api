@@ -1,0 +1,57 @@
+@startuml AnalytiCore_Pipeline_TOBE
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+title Figura 2 - Pipeline CI/CD AnalytiCore (TO-BE)
+
+|Desarrollador|
+start
+:Planificar sprint;
+:Revisar diseño;
+:Redactar casos de prueba;
+:Codificar;
+:Commit y push a GitHub;
+|Pipeline CI/CD|
+:Checkout del repositorio;
+if (¿Qué servicio cambió?) then (React)
+  :Instalar dependencias;
+  :Pruebas unitarias (Vitest);
+  :Análisis estático (ESLint);
+  :npm audit;
+  :docker build frontend;
+elseif (Python) then
+  :Instalar dependencias;
+  :Pruebas unitarias (pytest);
+  :Análisis estático (Ruff);
+  :pip-audit;
+  :docker build python-service;
+else (Java)
+  :Pruebas unitarias (JUnit);
+  :mvn package;
+  :docker build java-service;
+endif
+:Prueba de portabilidad (/health);
+:Escaneo de imagen (Trivy);
+:Publicar imagen en GHCR;
+if (¿CI exitoso?) then (Sí)
+|QA / Staging|
+  :Desplegar en staging (Docker Compose);
+  :Smoke test e integración;
+  if (¿Staging estable?) then (Sí)
+  |Líder técnico|
+    :Aprobar promoción a producción;
+    :Desplegar mismas imágenes en producción;
+    :Health checks post-deploy;
+    if (¿Producción OK?) then (Sí)
+      stop
+    else (No)
+      :Rollback o nuevo sprint;
+      stop
+    endif
+  else (No)
+    stop
+  endif
+else (No)
+  stop
+endif
+@enduml

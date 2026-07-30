@@ -26,11 +26,20 @@ def get_database_url() -> str:
     if os.getenv('RENDER'):
         if '.oregon-postgres.render.com' in url:
             url = url.replace('.oregon-postgres.render.com', '')
-    elif 'sslmode=' not in url:
-        separator = '&' if '?' in url else '?'
-        url = f'{url}{separator}sslmode=require'
+    else:
+        host = _extract_host(url)
+        if host not in {'postgres', 'localhost', '127.0.0.1'} and 'sslmode=' not in url:
+            separator = '&' if '?' in url else '?'
+            url = f'{url}{separator}sslmode=require'
 
     return _add_port_if_missing(url)
+
+
+def _extract_host(url: str) -> str:
+    at_index = url.index('@')
+    slash_index = url.index('/', at_index)
+    host_part = url[at_index + 1:slash_index]
+    return host_part.split(':')[0]
 
 
 def _add_port_if_missing(url: str) -> str:
