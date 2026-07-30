@@ -5,11 +5,11 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
-  security-events: write
 
 env:
   REGISTRY: ghcr.io
@@ -37,7 +37,7 @@ jobs:
 
   frontend-ci:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request'
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
 
   python-ci:
     needs: changes
-    if: needs.changes.outputs.python == 'true' || github.event_name == 'pull_request'
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +112,7 @@ jobs:
 
   java-ci:
     needs: changes
-    if: needs.changes.outputs.java == 'true' || github.event_name == 'pull_request'
+    if: needs.changes.outputs.java == 'true' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
